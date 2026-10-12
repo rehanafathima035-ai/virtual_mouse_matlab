@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA MOUSE // Hand Gesture Virtual Mouse</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Custom Cyber Glassmorphism Styles -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2306b6d4'><path d='M9 11.24V7.5a2.5 2.5 0 0 1 5 0v3.74a4 4 0 1 1-5 0z'/></svg>">
+</head>
+<body class="p-4 md:p-6 text-slate-100 min-h-screen flex flex-col justify-between">
+
+  <!-- TOP NAVIGATION / HEADER -->
+  <header class="max-w-7xl mx-auto w-full mb-6">
+    <div class="glass-panel p-4 md:px-6 flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-300 bg-clip-text text-transparent">
+            AURA MOUSE
+          </h1>
+          <p class="text-xs text-slate-400">Hand Gesture Computer Vision Virtual Mouse Controller</p>
+        </div>
+      </div>
+
+      <!-- Live Telemetry Status Badges -->
+      <div class="flex flex-wrap items-center gap-3 text-xs font-medium">
+        
+        <!-- Backend WS Badge -->
+        <div class="flex items-center space-x-2 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+          <span id="ws-status-dot" class="status-dot inactive"></span>
+          <span class="text-slate-400">Backend:</span>
+          <span id="ws-status-text" class="text-slate-200 font-semibold">Connecting...</span>
+        </div>
+
+        <!-- MATLAB CV Badge -->
+        <div class="flex items-center space-x-2 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+          <span id="matlab-status-dot" class="status-dot waiting"></span>
+          <span class="text-slate-400">MATLAB CV:</span>
+          <span id="matlab-status-text" class="text-amber-400 font-semibold">Waiting</span>
+        </div>
+
+        <!-- Latency Badge -->
+        <div class="flex items-center space-x-1.5 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+          <span class="text-slate-400">Latency:</span>
+          <span id="latency-badge" class="text-cyan-400 font-mono font-bold">-- ms</span>
+        </div>
+
+        <!-- FPS Badge -->
+        <div class="flex items-center space-x-1.5 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+          <span class="text-slate-400">FPS:</span>
+          <span id="fps-badge" class="text-emerald-400 font-mono font-bold">-- FPS</span>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <main class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+    
+    <!-- LEFT COLUMN: CANVAS TRACKPAD, MODES & MANUAL CONTROLS (7 Cols) -->
+    <div class="lg:col-span-7 flex flex-col space-y-6">
+      
+      <!-- Visualizer Card -->
+      <div class="glass-panel p-5 flex flex-col flex-grow">
+        
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+              Virtual Monitor & Trackpad
+            </h2>
+            <p class="text-xs text-slate-400">Real-time pointer trajectory & screen mapping</p>
+          </div>
+
+          <!-- Mode Selector Tabs -->
+          <div class="flex items-center space-x-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+            <button id="btn-mode-matlab" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 text-white shadow-md shadow-cyan-600/30 transition">
+              MATLAB CV Stream
+            </button>
+            <button id="btn-mode-browser" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition">
+              Browser Camera Test
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full rounded-xl overflow-hidden border border-slate-700/50 shadow-inner bg-slate-950 flex-grow min-h-[360px] flex items-center justify-center">
+          <canvas id="virtual-mouse-canvas" class="w-full h-full cursor-crosshair block"></canvas>
+          
+          <!-- Overlay HUD within Canvas -->
+          <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-mono flex items-center space-x-3 pointer-events-none">
+            <span class="text-slate-400">POS:</span>
+            <span id="coord-display" class="text-cyan-300 font-semibold">X: --- | Y: ---</span>
+            <span class="text-slate-500">|</span>
+            <span id="norm-coord-display" class="text-slate-400">(--%, --%)</span>
+          </div>
+
+          <div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-400 pointer-events-none">
+            Click / Drag trackpad to simulate
+          </div>
+        </div>
+
+        <!-- Collapsible In-Browser Webcam Feed Container -->
+        <div id="browser-cam-container" class="mt-4 p-4 rounded-xl bg-slate-900/60 border border-slate-800 hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-300">In-Browser Camera Hand Tracker</span>
+            <span class="text-[11px] text-slate-400">Immediate testing without MATLAB</span>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-4 items-center">
+            <video id="webcam-video" class="hidden" playsinline></video>
+            <div class="w-48 h-36 bg-black rounded-lg overflow-hidden border border-slate-700 relative">
+              <canvas id="webcam-canvas" class="w-full h-full object-cover"></canvas>
+            </div>
+            <div class="flex-grow flex flex-col space-y-2 w-full">
+              <p class="text-xs text-slate-400">
+                Hold your hand in front of the camera. The algorithm extracts your fingertip and triggers clicks automatically.
+              </p>
+              <button id="btn-toggle-webcam" class="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-md shadow-emerald-600/30">
+                Start In-Browser Camera
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Action Trigger Buttons -->
+        <div class="mt-4 pt-3 border-t border-slate-800/80">
+          <div class="text-xs font-medium text-slate-400 mb-2">Test Native Mouse Driver Actions:</div>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            <button data-action="LEFT_CLICK" class="py-2 px-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-cyan-600 hover:text-white border border-slate-700 text-slate-300 transition">
+              Left Click
+            </button>
+            <button data-action="RIGHT_CLICK" class="py-2 px-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-cyan-600 hover:text-white border border-slate-700 text-slate-300 transition">
+              Right Click
+            </button>
+            <button data-action="DOUBLE_CLICK" class="py-2 px-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-cyan-600 hover:text-white border border-slate-700 text-slate-300 transition">
+              Double Click
+            </button>
+            <button data-action="SCROLL_UP" class="py-2 px-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-cyan-600 hover:text-white border border-slate-700 text-slate-300 transition">
+              Scroll Up
+            </button>
+            <button data-action="SCROLL_DOWN" class="py-2 px-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-cyan-600 hover:text-white border border-slate-700 text-slate-300 transition">
+              Scroll Down
+            </button>
+            <button data-action="DRAG" class="py-2 px-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-amber-600 hover:text-white border border-slate-700 text-slate-300 transition">
+              Drag / Hold
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: RECOGNITION HUD, SETTINGS & GUIDE (5 Cols) -->
+    <div class="lg:col-span-5 flex flex-col space-y-6">
+      
+      <!-- Current Gesture Recognition Card -->
+      <div class="glass-panel p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Gesture State</span>
+          <span id="current-action-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-300">
+            IDLE
+          </span>
+        </div>
+
+        <div class="flex items-center space-x-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800/80">
+          <div id="current-gesture-icon" class="text-4xl p-2 bg-slate-800/80 rounded-2xl border border-slate-700 flex items-center justify-center w-16 h-16 shadow-lg shadow-cyan-500/10">
+            🖐️
+          </div>
+          <div class="flex-grow">
+            <div id="current-gesture-text" class="text-2xl font-black tracking-wide text-white">
+              IDLE
+            </div>
+            <div class="text-xs text-slate-400 mt-1 flex items-center gap-2">
+              <span>Tracking Confidence:</span>
+              <span class="text-emerald-400 font-bold">95%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gesture Visual Reference Guide -->
+      <div class="glass-panel p-5">
+        <h3 class="text-sm font-semibold text-slate-200 mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Gesture Quick Reference
+        </h3>
+
+        <div class="grid grid-cols-2 gap-2.5 text-xs">
+          
+          <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800 flex items-center space-x-3">
+            <span class="text-2xl">☝️</span>
+            <div>
+              <div class="font-bold text-slate-200">1 Finger</div>
+              <div class="text-slate-400 text-[11px]">Move Cursor</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800 flex items-center space-x-3">
+            <span class="text-2xl">✌️</span>
+            <div>
+              <div class="font-bold text-emerald-400">2 Joined / Pinch</div>
+              <div class="text-slate-400 text-[11px]">Left Click</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800 flex items-center space-x-3">
+            <span class="text-2xl">🤟</span>
+            <div>
+              <div class="font-bold text-rose-400">2 Spread / V-Sign</div>
+              <div class="text-slate-400 text-[11px]">Right Click</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800 flex items-center space-x-3">
+            <span class="text-2xl">✋</span>
+            <div>
+              <div class="font-bold text-purple-400">Open Palm Sweep</div>
+              <div class="text-slate-400 text-[11px]">Scroll Up / Down</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800 flex items-center space-x-3 col-span-2">
+            <span class="text-2xl">✊</span>
+            <div>
+              <div class="font-bold text-amber-400">Closed Fist</div>
+              <div class="text-slate-400 text-[11px]">Hold & Drag (Release on open)</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Sensitivity & Controls Panel -->
+      <div class="glass-panel p-5">
+        
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-200">Mouse Control Settings</h3>
+            <p class="text-xs text-slate-400">Adjust responsiveness & safety options</p>
+          </div>
+          
+          <!-- Master OS Mouse Toggle -->
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-semibold text-slate-300">OS Mouse:</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="mouse-toggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="space-y-4 text-xs">
+          
+          <!-- Sensitivity Slider -->
+          <div>
+            <div class="flex justify-between text-slate-300 mb-1">
+              <span>Pointer Sensitivity</span>
+              <span id="val-sensitivity" class="font-mono text-cyan-400">1.2x</span>
+            </div>
+            <input type="range" id="slider-sensitivity" min="0.5" max="3.0" step="0.1" value="1.2">
+          </div>
+
+          <!-- Smoothing Slider -->
+          <div>
+            <div class="flex justify-between text-slate-300 mb-1">
+              <span>EMA Smoothing Alpha (Jitter Reduction)</span>
+              <span id="val-smoothing" class="font-mono text-cyan-400">0.35</span>
+            </div>
+            <input type="range" id="slider-smoothing" min="0.1" max="0.9" step="0.05" value="0.35">
+          </div>
+
+          <!-- Click Cooldown Slider -->
+          <div>
+            <div class="flex justify-between text-slate-300 mb-1">
+              <span>Click Debounce Cooldown</span>
+              <span id="val-cooldown" class="font-mono text-cyan-400">350ms</span>
+            </div>
+            <input type="range" id="slider-cooldown" min="150" max="800" step="50" value="350">
+          </div>
+
+          <!-- Checkboxes for Axis Inversion -->
+          <div class="pt-2 flex items-center space-x-6">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="check-flip-x" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+              <span class="text-slate-300">Mirror X (Natural Webcam)</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="check-flip-y" class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+              <span class="text-slate-300">Invert Y</span>
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Live Event Console -->
+      <div class="glass-panel p-5 flex flex-col">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            Live Telemetry Log
+          </h3>
+          <button id="btn-clear-log" class="text-xs text-slate-400 hover:text-slate-200 underline">
+            Clear Log
+          </button>
+        </div>
+
+        <div class="h-36 overflow-y-auto bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 font-mono">
+          <ul id="event-log-list" class="space-y-1">
+            <!-- Events populated dynamically by app.js -->
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="max-w-7xl mx-auto w-full mt-6 text-center text-xs text-slate-500">
+    AURA MOUSE // Hand Gesture Virtual Mouse &copy; 2026. MATLAB Computer Vision &amp; Node.js Full-Stack Architecture.
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/visualizer.js"></script>
+  <script src="js/web_cv_fallback.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
